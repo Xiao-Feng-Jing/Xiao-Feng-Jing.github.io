@@ -1,6 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
+    <title>Hello World</title>
+    <url>/2021/10/28/hello-world/</url>
+    <content><![CDATA[<p>Welcome to <a href="https://hexo.io/">Hexo</a>! This is your very first post. Check <a href="https://hexo.io/docs/">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a href="https://hexo.io/docs/troubleshooting.html">troubleshooting</a> or you can ask me on <a href="https://github.com/hexojs/hexo/issues">GitHub</a>.</p>
+<span id="more"></span>
+
+<h2 id="Quick-Start"><a href="#Quick-Start" class="headerlink" title="Quick Start"></a>Quick Start</h2><h3 id="Create-a-new-post"><a href="#Create-a-new-post" class="headerlink" title="Create a new post"></a>Create a new post</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo new <span class="string">&quot;My New Post&quot;</span></span><br></pre></td></tr></table></figure>
+
+<p>More info: <a href="https://hexo.io/docs/writing.html">Writing</a></p>
+<h3 id="Run-server"><a href="#Run-server" class="headerlink" title="Run server"></a>Run server</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo server</span><br></pre></td></tr></table></figure>
+
+<p>More info: <a href="https://hexo.io/docs/server.html">Server</a></p>
+<h3 id="Generate-static-files"><a href="#Generate-static-files" class="headerlink" title="Generate static files"></a>Generate static files</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo generate</span><br></pre></td></tr></table></figure>
+
+<p>More info: <a href="https://hexo.io/docs/generating.html">Generating</a></p>
+<h3 id="Deploy-to-remote-sites"><a href="#Deploy-to-remote-sites" class="headerlink" title="Deploy to remote sites"></a>Deploy to remote sites</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo deploy</span><br></pre></td></tr></table></figure>
+
+<p>More info: <a href="https://hexo.io/docs/one-command-deployment.html">Deployment</a></p>
+]]></content>
+  </entry>
+  <entry>
     <title>双重校验锁的优化</title>
     <url>/2021/10/29/%E5%8F%8C%E9%87%8D%E6%A0%A1%E9%AA%8C%E9%94%81%E7%9A%84%E4%BC%98%E5%8C%96/</url>
     <content><![CDATA[<h1 id="双重校验锁-检查锁定优化"><a href="#双重校验锁-检查锁定优化" class="headerlink" title="双重校验锁/检查锁定优化"></a>双重校验锁/检查锁定优化</h1><ul>
@@ -30,9 +50,7 @@
 <p>上述代码中的2和3可能会进行重排序。排序后如下</p>
 <figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">memory = allocate();			//1：分配对象的内存空间</span><br><span class="line">instance = memory;			//3：设置instance指向刚刚分配的内存地址，但是此时并没有完成初始化</span><br><span class="line">ctorInstance(memory);			//2：初始化对象</span><br></pre></td></tr></table></figure>
 
-<p>根据Java语言规范，我们可以知道所有线程在执行Java程序时必须要遵守intra-thread semantics。intra-thread semantics保证重排序后不会改变单线程中的执行结果。也就是说，intra-thread semantics允许那些在单线程中不改变结果的重排序。所以上述排序是被允许的。</p>
-<p>多线程中上述代码的执行时序图。</p>
-<p><img src="https://xiaofengjing-blog.oss-cn-beijing.aliyuncs.com/image/202110291920377.png"></p>
+<p>根据Java语言规范，我们可以知道所有线程在执行Java程序时必须要遵守intra-thread semantics。intra-thread semantics保证重排序后不会改变单线程中的执行结果。也就是说，intra-thread semantics允许那些在单线程中不改变结果的重排序。所以上述排序是被允许的。<br>        多线程中上述代码的执行时序图。<br><img src="https://xiaofengjing-blog.oss-cn-beijing.aliyuncs.com/image/202110291920377.png"></p>
 ]]></content>
       <categories>
         <category>Java基础</category>
@@ -41,25 +59,5 @@
       <tags>
         <tag>JAVA基础</tag>
       </tags>
-  </entry>
-  <entry>
-    <title>Hello World</title>
-    <url>/2021/10/28/hello-world/</url>
-    <content><![CDATA[<p>Welcome to <a href="https://hexo.io/">Hexo</a>! This is your very first post. Check <a href="https://hexo.io/docs/">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a href="https://hexo.io/docs/troubleshooting.html">troubleshooting</a> or you can ask me on <a href="https://github.com/hexojs/hexo/issues">GitHub</a>.</p>
-<span id="more"></span>
-
-<h2 id="Quick-Start"><a href="#Quick-Start" class="headerlink" title="Quick Start"></a>Quick Start</h2><h3 id="Create-a-new-post"><a href="#Create-a-new-post" class="headerlink" title="Create a new post"></a>Create a new post</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo new <span class="string">&quot;My New Post&quot;</span></span><br></pre></td></tr></table></figure>
-
-<p>More info: <a href="https://hexo.io/docs/writing.html">Writing</a></p>
-<h3 id="Run-server"><a href="#Run-server" class="headerlink" title="Run server"></a>Run server</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo server</span><br></pre></td></tr></table></figure>
-
-<p>More info: <a href="https://hexo.io/docs/server.html">Server</a></p>
-<h3 id="Generate-static-files"><a href="#Generate-static-files" class="headerlink" title="Generate static files"></a>Generate static files</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo generate</span><br></pre></td></tr></table></figure>
-
-<p>More info: <a href="https://hexo.io/docs/generating.html">Generating</a></p>
-<h3 id="Deploy-to-remote-sites"><a href="#Deploy-to-remote-sites" class="headerlink" title="Deploy to remote sites"></a>Deploy to remote sites</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo deploy</span><br></pre></td></tr></table></figure>
-
-<p>More info: <a href="https://hexo.io/docs/one-command-deployment.html">Deployment</a></p>
-]]></content>
   </entry>
 </search>
