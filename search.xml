@@ -26,8 +26,8 @@
     <content><![CDATA[<h1 id="双重校验锁-检查锁定优化"><a href="#双重校验锁-检查锁定优化" class="headerlink" title="双重校验锁/检查锁定优化"></a>双重校验锁/检查锁定优化</h1><ul>
 <li><a href="#%E5%8F%8C%E9%87%8D%E6%A3%80%E6%9F%A5%E9%94%81%E5%AE%9A%E7%9A%84%E7%94%B1%E6%9D%A5">双重检查锁定的由来</a></li>
 <li><a href="#%E9%97%AE%E9%A2%98%E7%9A%84%E6%A0%B9%E6%BA%90">问题的根源</a></li>
-<li>基于volatile的优化方案</li>
-<li>基于类初始化的优化方案</li>
+<li><a href="#%E5%9F%BA%E4%BA%8Evolatile%E7%9A%84%E4%BC%98%E5%8C%96%E6%96%B9%E6%A1%88">基于volatile的优化方案</a></li>
+<li><a href="#%E5%9F%BA%E4%BA%8E%E7%B1%BB%E5%88%9D%E5%A7%8B%E5%8C%96%E7%9A%84%E4%BC%98%E5%8C%96%E6%96%B9%E6%A1%88">基于类初始化的优化方案</a></li>
 </ul>
 <span id="more"></span>
 
@@ -50,7 +50,35 @@
 <p>上述代码中的2和3可能会进行重排序。排序后如下</p>
 <figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">memory = allocate();			//1：分配对象的内存空间</span><br><span class="line">instance = memory;			//3：设置instance指向刚刚分配的内存地址，但是此时并没有完成初始化</span><br><span class="line">ctorInstance(memory);			//2：初始化对象</span><br></pre></td></tr></table></figure>
 
-<p>根据Java语言规范，我们可以知道所有线程在执行Java程序时必须要遵守intra-thread semantics。intra-thread semantics保证重排序后不会改变单线程中的执行结果。也就是说，intra-thread semantics允许那些在单线程中不改变结果的重排序。所以上述排序是被允许的。<br>        多线程中上述代码的执行时序图。<br><img src="https://xiaofengjing-blog.oss-cn-beijing.aliyuncs.com/image/202110291920377.png"></p>
+<p>根据Java语言规范，我们可以知道所有线程在执行Java程序时必须要遵守intra-thread semantics。intra-thread semantics保证重排序后不会改变单线程中的执行结果。也就是说，intra-thread semantics允许那些在单线程中不改变结果的重排序。所以上述排序是被允许的。</p>
+<p>多线程中上述代码的执行时序图。</p>
+<p><img src="https://xiaofengjing-blog.oss-cn-beijing.aliyuncs.com/image/202110291920377.png"></p>
+<center style = "font-size: 14px">图 1 多线程执行时序图</center>
+
+<p>由于单线程内要遵守intra-thread semantics，从而保证A线程的执行结果不会发生改变。但是在上图中B线程将会看到一个没有被初始化的对象。</p>
+<p>通过上文的分析，我们可以知道在双重检查锁定的示例代码中如果代码7处发生了重排序，那么另一个线程就可能在代码4处判断instance不为null。然后线程B将会访问instance所引用的对象，但是此时该对象并未初始化完成！</p>
+<p>如此，我们知晓了问题的根源，那么我们就可以通过两个方法来实现线程安全的延迟初始化。</p>
+<ol>
+<li>不允许2和3进行重排序。</li>
+<li>允许2和3进行重排序，但是不允许其他线程“看到”这个重排序。</li>
+</ol>
+<h2 id="基于volatile的优化方案"><a href="#基于volatile的优化方案" class="headerlink" title="基于volatile的优化方案"></a>基于volatile的优化方案</h2><p>通过使用volatile关键字禁止重排序实现优化。</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Singleton</span></span>&#123;						</span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">volatile</span> <span class="keyword">static</span> Singleton instance;				</span><br><span class="line">  </span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> Singleton <span class="title">getInstance</span><span class="params">()</span> </span>&#123;			</span><br><span class="line">    <span class="keyword">if</span> (instance == <span class="keyword">null</span>) &#123;					</span><br><span class="line">      <span class="keyword">synchronized</span> (Singleton) &#123;				</span><br><span class="line">        <span class="keyword">if</span> (instance == <span class="keyword">null</span>) &#123;					</span><br><span class="line">          instance = <span class="keyword">new</span> Singleton();				</span><br><span class="line">        &#125;							</span><br><span class="line">      &#125;								</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> instance;						</span><br><span class="line">  &#125;								</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>当声明对象的引用为volatile后，重排序将会被禁止。线程执行时序图如下。</p>
+<p><img src="https://xiaofengjing-blog.oss-cn-beijing.aliyuncs.com/image/202110292256594.png"></p>
+<center style  = "font-size:14px;">图 2多线程执行时序图</center>
+
+<h2 id="基于类初始化的优化方案"><a href="#基于类初始化的优化方案" class="headerlink" title="基于类初始化的优化方案"></a>基于类初始化的优化方案</h2><p>JVM在类初始化阶段（即在Class被加载后，且被线程使用之前），会执行类的初始化。在执行类的初始化期间，JVM会获取一个锁。这个锁可以同步多个线程对同一个类的初始化。</p>
+<p>基于这个特性，可以实现另一种线程安全的延迟初始化方案（Initialization On Demand Holder idiom）</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Singleton</span></span>&#123;</span><br><span class="line">  </span><br><span class="line">  <span class="function"><span class="keyword">private</span> <span class="title">Singleton</span><span class="params">()</span></span>&#123;&#125;		</span><br><span class="line">  </span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">static</span> <span class="class"><span class="keyword">class</span> <span class="title">InstanceHolder</span> </span>&#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> Singleton instance = <span class="keyword">new</span> Singleton();</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> Singleton <span class="title">getInstance</span><span class="params">()</span> </span>&#123;			</span><br><span class="line">    <span class="keyword">return</span> InstanceHolder.instance;			<span class="comment">//这里将导致instanceHolder类被初始化</span></span><br><span class="line">  &#125;								</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>假如两个线程并发执行getInstance()方法，下面将会是执行的示意图。</p>
+<p><img src="https://xiaofengjing-blog.oss-cn-beijing.aliyuncs.com/image/202110292332137.png"></p>
+<center style = "font-size:14px;">图 3 两个线程并发执行的意图</center>
+
+<p>这个方案的实质是重排序，但是不允许非构造线程“看到”这个重排序。</p>
+<p>未完待续。。。。</p>
 ]]></content>
       <categories>
         <category>Java基础</category>
