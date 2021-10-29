@@ -1,6 +1,48 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
+    <title>双重校验锁的优化</title>
+    <url>/2021/10/29/%E5%8F%8C%E9%87%8D%E6%A0%A1%E9%AA%8C%E9%94%81%E7%9A%84%E4%BC%98%E5%8C%96/</url>
+    <content><![CDATA[<h1 id="双重校验锁-检查锁定优化"><a href="#双重校验锁-检查锁定优化" class="headerlink" title="双重校验锁/检查锁定优化"></a>双重校验锁/检查锁定优化</h1><ul>
+<li><a href="#%E5%8F%8C%E9%87%8D%E6%A3%80%E6%9F%A5%E9%94%81%E5%AE%9A%E7%9A%84%E7%94%B1%E6%9D%A5">双重检查锁定的由来</a></li>
+<li><a href="#%E9%97%AE%E9%A2%98%E7%9A%84%E6%A0%B9%E6%BA%90">问题的根源</a></li>
+<li>基于volatile的优化方案</li>
+<li>基于类初始化的优化方案</li>
+</ul>
+<span id="more"></span>
+
+<h2 id="双重检查锁定的由来"><a href="#双重检查锁定的由来" class="headerlink" title="双重检查锁定的由来"></a>双重检查锁定的由来</h2><p>在Java程序中，有时候需要推迟一些高开销的对象初始化操作，并且只有在需要使用这些对象的时候才进行初始化操作。为此，我们采用了延迟初始化方案（懒汉单例模式），但是在多线程的环境下，我们需要一些技巧来保证线程的安全性，否则容易出问题。如下示例是非线程安全的延迟初始化操作。</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Singleton</span></span>&#123;</span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">static</span> Singleton instance;</span><br><span class="line">  </span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> Singleton <span class="title">getInstance</span><span class="params">()</span> </span>&#123;    </span><br><span class="line">    <span class="keyword">if</span> (instance == <span class="keyword">null</span>) &#123;					<span class="comment">//1. A线程执行</span></span><br><span class="line">      instance = <span class="keyword">new</span> Singleton();				<span class="comment">//1. B线程执行</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> instance;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>可以看到，当线程A执行代码1时，B线程正在执行代码2，这时A线程可能会看到instance引用对象还没又完成初始化，导致生成多个实例。</p>
+<p>对于这种情况我们可以采用同步的方案来实现线程安全的延迟初始化。示例如下。</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Singleton</span></span>&#123;</span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">static</span> Singleton instance;</span><br><span class="line">  </span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">synchronized</span> <span class="keyword">static</span> Singleton <span class="title">getInstance</span><span class="params">()</span> </span>&#123;    </span><br><span class="line">    <span class="keyword">if</span> (instance == <span class="keyword">null</span>) &#123;		  </span><br><span class="line">      instance = <span class="keyword">new</span> Singleton();</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> instance;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>由于我们对于getInstance()方法进行了同步处理，将会导致性能开销。如果该方法被多线程频繁的调用，将会导致程序性能下降。反之，该方案将会提供令人满意的性能。</p>
+<p>为了降低在多线程的情况下的开销，先辈们想出了一个“聪明”的办法：双重检查锁定（Double-Checked Locking）。下面是双重检查锁定的示例代码。</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Singleton</span></span>&#123;						<span class="comment">//1</span></span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">static</span> Singleton instance;				<span class="comment">//2</span></span><br><span class="line">  </span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> Singleton <span class="title">getInstance</span><span class="params">()</span> </span>&#123;			<span class="comment">//3</span></span><br><span class="line">    <span class="keyword">if</span> (instance == <span class="keyword">null</span>) &#123;					<span class="comment">//4: 第一次检查</span></span><br><span class="line">      <span class="keyword">synchronized</span> (Singleton) &#123;				<span class="comment">//5：加锁</span></span><br><span class="line">        <span class="keyword">if</span> (instance == <span class="keyword">null</span>) &#123;					<span class="comment">//6：第二次检查</span></span><br><span class="line">          instance = <span class="keyword">new</span> Singleton();				<span class="comment">//7：问题的根源</span></span><br><span class="line">        &#125;							<span class="comment">//8</span></span><br><span class="line">      &#125;								<span class="comment">//9</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> instance;						<span class="comment">//10</span></span><br><span class="line">  &#125;								<span class="comment">//11</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>通过上述代码，我们可以知道，如果第一次检查instance不为null，那么就不需要执行下面的加锁和初始化了。可以大幅度降低synchronized带来的性能开销。</p>
+<p>似乎上述代码很完美了，但是这是错误的优化。在线程执行到代码4时，代码读取到instance不为null时，instance引用对象可能还没有完成初始化。</p>
+<h2 id="问题的根源"><a href="#问题的根源" class="headerlink" title="问题的根源"></a>问题的根源</h2><p>在双重检查锁定的代码中代码7创建了一个对象，它可以分解为以下几行伪代码。</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">memory = allocate();			//1：分配对象的内存空间</span><br><span class="line">ctorInstance(memory);			//2：初始化对象</span><br><span class="line">instance = memory;			//3：设置instance指向刚刚分配的内存地址</span><br></pre></td></tr></table></figure>
+
+<p>上述代码中的2和3可能会进行重排序。排序后如下</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">memory = allocate();			//1：分配对象的内存空间</span><br><span class="line">instance = memory;			//3：设置instance指向刚刚分配的内存地址，但是此时并没有完成初始化</span><br><span class="line">ctorInstance(memory);			//2：初始化对象</span><br></pre></td></tr></table></figure>
+
+<p>根据Java语言规范，我们可以知道所有线程在执行Java程序时必须要遵守intra-thread semantics。intra-thread semantics保证重排序后不会改变单线程中的执行结果。也就是说，intra-thread semantics允许那些在单线程中不改变结果的重排序。所以上述排序是被允许的。</p>
+<p>多线程中上述代码的执行时序图。</p>
+<p><img src="https://xiaofengjing-blog.oss-cn-beijing.aliyuncs.com/image/202110291920377.png"></p>
+]]></content>
+      <categories>
+        <category>Java基础</category>
+        <category>多线程</category>
+      </categories>
+      <tags>
+        <tag>JAVA基础</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>Hello World</title>
     <url>/2021/10/28/hello-world/</url>
     <content><![CDATA[<p>Welcome to <a href="https://hexo.io/">Hexo</a>! This is your very first post. Check <a href="https://hexo.io/docs/">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a href="https://hexo.io/docs/troubleshooting.html">troubleshooting</a> or you can ask me on <a href="https://github.com/hexojs/hexo/issues">GitHub</a>.</p>
@@ -19,17 +61,5 @@
 
 <p>More info: <a href="https://hexo.io/docs/one-command-deployment.html">Deployment</a></p>
 ]]></content>
-  </entry>
-  <entry>
-    <title>双重校验锁的优化</title>
-    <url>/2021/10/29/%E5%8F%8C%E9%87%8D%E6%A0%A1%E9%AA%8C%E9%94%81%E7%9A%84%E4%BC%98%E5%8C%96/</url>
-    <content><![CDATA[]]></content>
-      <categories>
-        <category>Java基础</category>
-        <category>多线程</category>
-      </categories>
-      <tags>
-        <tag>JAVA基础</tag>
-      </tags>
   </entry>
 </search>
