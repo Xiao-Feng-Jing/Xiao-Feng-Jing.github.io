@@ -2636,6 +2636,7 @@ ul.breadcrumb li:last-child {
   visibility: hidden;
   width: 100%;
   z-index: 1400;
+  opacity: 0.8;
 }
 .search-active .search-pop-overlay {
   background: rgba(0,0,0,0.3);
@@ -2738,11 +2739,9 @@ mark.search-keyword {
   animation-fill-mode: both;
 }
 .header-inner {
-  background: var(--content-bg-color);
   border-radius: initial;
   box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12);
   width: 240px;
-  opacity: 0.8;
 }
 @media (max-width: 991px) {
   .header-inner {
@@ -2798,6 +2797,7 @@ mark.search-keyword {
 }
 .site-brand-container {
   background: var(--theme-color);
+  opacity: 0.8;
 }
 @media (max-width: 991px) {
   .site-nav-on .site-brand-container {
@@ -2828,6 +2828,10 @@ mark.search-keyword {
 .site-nav-toggle .toggle .toggle-line,
 .site-nav-right .toggle .toggle-line {
   background: #fff;
+}
+.site-nav {
+  background: var(--content-bg-color);
+  opacity: 0.8;
 }
 @media (min-width: 768px) and (max-width: 991px) {
   .site-nav {
